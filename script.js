@@ -583,6 +583,7 @@ async function pickRoundBase() {
         newRound = Math.floor(Math.random() * 5) + 1;
     } while (newRound === levelRound);
     levelRound = newRound;
+    
 
     const layout = getRoundLayout(levelRound);
     if (!layout) return;
