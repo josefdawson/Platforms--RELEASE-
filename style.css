@@ -1,0 +1,291 @@
+#startButton {
+    position: absolute;
+    top: 500px;
+    right: 700px;
+    width: 300px;
+    height: 100px;
+    background-color: green;
+    color: white;
+    -webkit-text-stroke: 2px black;
+    font-size: 50px;
+    transition: font-size 0.3s ease;
+}
+
+body {
+    background-color: lightblue;
+}
+
+#startButton:hover {
+  font-size: 54px; 
+}
+
+#title {
+    position: absolute;
+    top: 200px;
+    right: 550px;
+    width: 500px;
+    height: 100px;
+    font-size: 100px;
+    color: white;
+    -webkit-text-stroke: 2px black;
+}
+
+#player {
+  width: 50px;              
+  height: 50px;             
+  background-color: #ff0000;
+  position: absolute;      
+  top: 100px;             
+  left: 100px;           
+  display: none; 
+  transition: all 0.1s ease;
+}
+
+.platform, #platform {
+    width: 6000px;
+    height: 50px;
+    background-color: brown;
+    position: absolute;
+    top: 450px;
+    right: 1px;
+    display: none;
+    transition: all 0.2s ease;
+}
+
+#blue {
+    background-color: blue;
+    color: white;
+    position: absolute;
+    right: 700px;
+    top: 400px;
+    width: 100px;
+    height: 50px;
+    font-size: 30px;
+    transition: font-size 0.3s ease;
+    display: none;
+}
+
+#blue:hover {
+    font-size: 34px;
+}
+
+#red {
+    background-color: red;
+    color: white;
+    position: absolute;
+    right: 900px;
+    top: 400px;
+    width: 100px;
+    height: 50px;
+    font-size: 30px;
+    transition: font-size 0.3s ease;
+    display: none;
+}
+
+#red:hover {
+    font-size: 34px;
+}
+
+#black {
+    background-color: black;
+    color: white;
+    position: absolute;
+    right: 800px;
+    top: 400px;
+    width: 100px;
+    height: 50px;
+    font-size: 30px;
+    transition: font-size 0.3s ease;
+    display: none;
+}
+
+#black:hover {
+    font-size: 34px;
+}
+
+#finishDoor {
+    background-color: white;
+    position: absolute;
+    right: 100px;
+    top: 300px;
+    width: 100px;
+    height: 150px;
+    display: none;
+    border: 2px solid black; 
+    transition: all 0.2s ease;
+}
+
+#starPoints {
+    position: absolute;
+    top: 100px;
+    right: 20px;
+    font-size: 24px;
+    color: gold;
+    -webkit-text-stroke: 1px black;
+    font-weight: bold;
+    display: none;
+}
+
+#skipButton {
+    position: absolute;
+    top: 500px;
+    right: 20px;
+    width: 160px;
+    height: 44px;
+    background: #f90;
+    border: 2px solid #000;
+    border-radius: 12px;
+    color: black;
+    font-size: 16px;
+    cursor: pointer;
+    display: none;
+}
+
+#skipButton:hover {
+    font-size: 20px;
+}
+
+#star {
+    position: absolute;
+    right: 900px;
+    top: 350px;
+    width: 100px;
+    height: 100px;
+    mix-blend-mode: multiply; 
+    display: none;
+}
+
+.star-clone {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    mix-blend-mode: multiply;
+    display: block;
+}
+
+#spike {
+    position: absolute;
+    right: 900px;
+    top: 350px;
+    width: 80px;
+    height: 80px;
+    mix-blend-mode: multiply;
+    display: none;
+}
+
+.spike-clone {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    mix-blend-mode: multiply;
+    display: block;
+}
+
+#chooseText {
+    color: white;
+    border: 5px black;
+    font-size: 80px;
+    position: absolute;
+    top: 200px;
+    right: 300px;
+    -webkit-text-stroke: 2px white;
+    color: black;
+    display: none;
+}
+
+#lvl {
+    -webkit-text-stroke: 1px black;
+    position: absolute;
+    right: 800px;
+    top: 0px;
+    font-size: 50px;
+    color: white;
+    display: none;
+}
+
+.hidden {
+    display: none !important;
+}
+
+#shopOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+#shopBox {
+    background: white;
+    color: black;
+    padding: 24px;
+    border-radius: 18px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    width: min(420px, 90%);
+    text-align: center;
+}
+
+#shopBox h2 {
+    margin-top: 0;
+}
+
+.shop-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 12px 0;
+}
+
+#shopBox button {
+    font-size: 18px;
+    padding: 12px 18px;
+    border: none;
+    border-radius: 10px;
+    background: #2c7;
+    color: #000;
+    cursor: pointer;
+}
+
+#shopContinue {
+    margin-top: 16px;
+    width: 100%;
+    background: #48f;
+    color: white;
+}
+
+#mobileControls {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.mobile-button {
+    pointer-events: auto;
+    min-width: 70px;
+    min-height: 60px;
+    border-radius: 18px;
+    border: 2px solid #000;
+    background: rgba(255,255,255,0.9);
+    color: #000;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+@media (max-width: 900px) {
+    #mobileControls {
+        display: flex;
+    }
+}
+
+@media (min-width: 901px) {
+    #mobileControls {
+        display: none;
+    }
+}

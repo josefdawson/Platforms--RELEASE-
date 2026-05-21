@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="player"></div>
+    <div id="platform"></div>
+    <button id="blue">Blue</button>
+    <button id="red">Red</button>
+    <button id="black">Black</button>
+    <div id="finishDoor"></div>
+    <img id="star" src="image.png" alt="Star"></img>
+    <img id="spike" src="image copy.png" alt="Spike"></img>
+
+    <p id="lvl">Level 1</p>
+    <p id="starPoints">Stars: 0</p>
+    <button id="skipButton">Skip Level (1)</button>
+    <h1 id="chooseText">Choose your characters color!</h1>
+    <button id="startButton">Start Game</button>
+    <div id="shopOverlay" class="hidden">
+        <div id="shopBox">
+            <h2>Shop</h2>
+            <p>Stars: <span id="shopStars">0</span></p>
+            <div class="shop-item">
+                <button id="buyDoubleJump">Buy Double Jump (10)</button>
+                <span id="doubleJumpStatus">Not owned</span>
+            </div>
+            <div class="shop-item">
+                <button id="buyDash">Buy Dash (15)</button>
+                <span id="dashStatus">Not owned</span>
+            </div>
+            <div class="shop-item">
+                <button id="buySkip">Buy Skip (10)</button>
+                <span id="skipStatus">Free skip available</span>
+            </div>
+            <button id="shopContinue">Continue</button>
+        </div>
+    </div>
+    <div id="mobileControls">
+        <button id="mobileLeft" class="mobile-button">◀</button>
+        <button id="mobileRight" class="mobile-button">▶</button>
+        <button id="mobileJump" class="mobile-button">Jump</button>
+        <button id="mobileDash" class="mobile-button">Dash</button>
+    </div>
+    <h1 id="title">Platforms</h1>
+    <script src="script.js"></script>
+</body>
