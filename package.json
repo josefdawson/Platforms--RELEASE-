@@ -1,0 +1,12 @@
+{
+  "name": "platforms-multiplayer-server",
+  "version": "1.0.0",
+  "description": "WebSocket server for multiplayer Platforms game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.20.1"
+  }
+}

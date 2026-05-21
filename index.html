@@ -13,15 +13,37 @@
     <button id="blue">Blue</button>
     <button id="red">Red</button>
     <button id="black">Black</button>
+    <button id="normalModeBtn">Normal</button>
+    <button id="hardModeBtn">Hard</button>
+    <button id="singleplayerBtn">Solo</button>
+    <button id="multiplayerBtn">Multiplayer</button>
     <div id="finishDoor"></div>
     <img id="star" src="image.png" alt="Star"></img>
     <img id="spike" src="image copy.png" alt="Spike"></img>
 
     <p id="lvl">Level 1</p>
     <p id="starPoints">Stars: 0</p>
+    <p id="coordsUI" class="coords-ui">X: 0 | Y: 0</p>
     <button id="skipButton">Skip Level (1)</button>
     <h1 id="chooseText">Choose your characters color!</h1>
     <button id="startButton">Start Game</button>
+    
+    <div id="modeSelectOverlay" class="hidden">
+        <div id="modeSelectBox">
+            <h2>Select Game Mode</h2>
+            <button id="normalModeBtn" class="mode-btn">Normal Mode</button>
+            <button id="hardModeBtn" class="mode-btn">Hard Mode</button>
+        </div>
+    </div>
+    
+    <div id="multiplayerSelectOverlay" class="hidden">
+        <div id="multiplayerSelectBox">
+            <h2>Select Player Mode</h2>
+            <button id="singleplayerBtn" class="player-btn">Singleplayer</button>
+            <button id="multiplayerBtn" class="player-btn">Multiplayer</button>
+        </div>
+    </div>
+    
     <div id="shopOverlay" class="hidden">
         <div id="shopBox">
             <h2>Shop</h2>
@@ -41,6 +63,27 @@
             <button id="shopContinue">Continue</button>
         </div>
     </div>
+    
+    <div id="pauseMenuOverlay" class="hidden">
+        <div id="pauseMenuBox">
+            <h2>PAUSED</h2>
+            <button id="resumeBtn" class="pause-btn">Resume</button>
+            <button id="mainMenuBtn" class="pause-btn">Return to Main Menu</button>
+        </div>
+    </div>
+    
+    <div id="confirmationOverlay" class="hidden">
+        <div id="confirmationBox">
+            <h2>Are you sure?</h2>
+            <p>You will lose all your progress</p>
+            <div class="confirmation-buttons">
+                <button id="confirmYesBtn" class="confirm-btn">Yes</button>
+                <button id="confirmNoBtn" class="confirm-btn">No</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="remotePlayersContainer"></div>
     <div id="mobileControls">
         <button id="mobileLeft" class="mobile-button">◀</button>
         <button id="mobileRight" class="mobile-button">▶</button>

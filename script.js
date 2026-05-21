@@ -4,7 +4,7 @@ const player = document.getElementById("player");
 const platformTemplate = document.getElementById("platform");
 platformTemplate.classList.add("platform");
 platformTemplate.style.display = "none";
-const coordsUI = document.getElementById("coordsUI"); 
+const coordsUI = document.getElementById("coordsUI");
 const red = document.getElementById("red")
 const blue = document.getElementById("blue")
 const black = document.getElementById("black")
@@ -14,7 +14,6 @@ const playerHeight = 50;
 let platforms = [];
 let stars = [];
 let spikes = [];
-const colorText = document.getElementById("textColor")
 const door = document.getElementById("finishDoor")
 const star = document.getElementById("star")
 const spike = document.getElementById("spike")
@@ -26,6 +25,11 @@ let levelRound = Math.floor(Math.random() * 5) + 1;
 const wait = (ms) => new Promise(res => setTimeout(res, ms));
 let level = 1
 let points = 0
+let isHardMode = false;
+let isMultiplayer = false;
+let isPaused = false;
+let localReachedDoor = false;
+let remotePlayersReachedDoor = {};
 
 let x = 100, y = 100, vx = 0, vy = 0, onGround = false;
 const keys = {};
@@ -59,8 +63,154 @@ const mobileRight = document.getElementById("mobileRight");
 const mobileJump = document.getElementById("mobileJump");
 const mobileDash = document.getElementById("mobileDash");
 
+const modeSelectOverlay = document.getElementById("modeSelectOverlay");
+const modeSelectBox = document.getElementById("modeSelectBox");
+const normalModeBtn = document.getElementById("normalModeBtn");
+const hardModeBtn = document.getElementById("hardModeBtn");
+
+const multiplayerSelectOverlay = document.getElementById("multiplayerSelectOverlay");
+const multiplayerSelectBox = document.getElementById("multiplayerSelectBox");
+const singleplayerBtn = document.getElementById("singleplayerBtn");
+const multiplayerBtn = document.getElementById("multiplayerBtn");
+
+const pauseMenuOverlay = document.getElementById("pauseMenuOverlay");
+const pauseMenuBox = document.getElementById("pauseMenuBox");
+const resumeBtn = document.getElementById("resumeBtn");
+const mainMenuBtn = document.getElementById("mainMenuBtn");
+
+const confirmationOverlay = document.getElementById("confirmationOverlay");
+const confirmationBox = document.getElementById("confirmationBox");
+const confirmYesBtn = document.getElementById("confirmYesBtn");
+const confirmNoBtn = document.getElementById("confirmNoBtn");
+
+const remotePlayersContainer = document.getElementById("remotePlayersContainer");
+
+let multiplayerSocket = null;
+let playerId = null;
+let myColor = '#ff0000';
+let remotePlayers = {};
+
+function initMultiplayer() {
+    playerId = Math.random().toString(36).substr(2, 9);
+
+    const serverUrl = "ws://localhost:8080";
+
+    try {
+        multiplayerSocket = new WebSocket(serverUrl);
+
+        multiplayerSocket.onopen = function() {
+            multiplayerSocket.send(JSON.stringify({
+                type: "join",
+                playerId: playerId
+            }));
+        };
+
+        multiplayerSocket.onmessage = function(event) {
+            const msg = JSON.parse(event.data);
+
+            if (msg.type === "yourColor") {
+                myColor = msg.color;
+                player.style.backgroundColor = myColor;
+            }
+
+            if (msg.type === "playerList") {
+                for (const id in msg.players) {
+                    if (id !== playerId) {
+                        if (!remotePlayers[id]) {
+                            createRemotePlayer(id, msg.players[id].color);
+                        }
+                        remotePlayers[id].x = msg.players[id].x;
+                        remotePlayers[id].y = msg.players[id].y;
+                    }
+                }
+                for (const id in remotePlayers) {
+                    if (!msg.players[id]) {
+                        removeRemotePlayer(id);
+                    }
+                }
+            }
+
+            if (msg.type === "playerState") {
+                if (msg.playerId !== playerId) {
+                    if (!remotePlayers[msg.playerId]) {
+                        createRemotePlayer(msg.playerId, '#44ff44');
+                    }
+                    remotePlayers[msg.playerId].x = msg.x;
+                    remotePlayers[msg.playerId].y = msg.y;
+                }
+            }
+
+            if (msg.type === "levelComplete") {
+                if (msg.playerId !== playerId) {
+                    remotePlayersReachedDoor[msg.playerId] = true;
+                }
+            }
+        };
+
+        multiplayerSocket.onerror = function(error) {
+            console.error("WebSocket error:", error);
+            isMultiplayer = false;
+        };
+    } catch (error) {
+        console.error("Failed to connect:", error);
+        isMultiplayer = false;
+    }
+}
+
+function createRemotePlayer(id, color) {
+    const el = document.createElement("div");
+    el.className = "remote-player";
+    el.style.backgroundColor = color;
+    el.style.display = "block";
+    el.style.left = "0px";
+    el.style.top = "0px";
+    remotePlayersContainer.appendChild(el);
+    remotePlayers[id] = {
+        el: el,
+        x: 0,
+        y: 0,
+        reachedDoor: false
+    };
+}
+
+function removeRemotePlayer(id) {
+    if (remotePlayers[id]) {
+        remotePlayers[id].el.remove();
+        delete remotePlayers[id];
+    }
+    delete remotePlayersReachedDoor[id];
+}
+
+function sendPlayerState() {
+    if (multiplayerSocket && multiplayerSocket.readyState === WebSocket.OPEN) {
+        multiplayerSocket.send(JSON.stringify({
+            type: "playerState",
+            playerId: playerId,
+            x: x,
+            y: y
+        }));
+    }
+}
+
+function sendLevelComplete() {
+    if (multiplayerSocket && multiplayerSocket.readyState === WebSocket.OPEN) {
+        multiplayerSocket.send(JSON.stringify({
+            type: "levelComplete",
+            playerId: playerId
+        }));
+    }
+}
+
 window.onkeydown = (e) => {
     const key = e.key.toLowerCase();
+    if (key === "escape") {
+        if (isPaused) {
+            resumeGame();
+        } else {
+            pauseGame();
+        }
+        return;
+    }
     if (key === "a" || key === "d") {
         keys[key] = true;
         if (key === "a") lastDirection = -1;
@@ -75,47 +225,112 @@ window.onkeyup = (e) => {
 };
 
 async function startGame() {
+    isPaused = false;
     player.style.display = "block";
     black.style.display = "none";
     blue.style.display = "none";
     red.style.display = "none";
     door.style.display = "block";
-    star.style.display = "none"; // keep template hidden
-    spike.style.display = "none"; // keep spike template hidden
-    starPoints.style.display = "inline";
+    star.style.display = "none";
+    spike.style.display = "none";
+    starPoints.style.display = isHardMode ? "none" : "inline";
     chooseText.style.display = "none";
     levelText.style.display = "inline";
-    skipButton.style.display = "inline-block";
+    skipButton.style.display = isHardMode ? "none" : "inline-block";
     shopOverlay.classList.add("hidden");
     shopOpen = false;
 
     await pickRoundBase();
     skipButton.textContent = `Skip Level (${skipCount})`;
     skipButton.disabled = skipCount === 0;
-    loop(); 
+    loop();
+}
+
+function pauseGame() {
+    if (!shopOpen) {
+        isPaused = true;
+        pauseMenuOverlay.classList.remove("hidden");
+    }
+}
+
+function resumeGame() {
+    isPaused = false;
+    pauseMenuOverlay.classList.add("hidden");
+    if (!isMultiplayer) {
+        loop();
+    }
+}
+
+function returnToMainMenu() {
+    confirmationOverlay.classList.remove("hidden");
+    pauseMenuOverlay.classList.add("hidden");
 }
 
 button.addEventListener("click", function() {
     button.style.display = "none";
     titleText.style.display = "none";
+    chooseText.textContent = "Choose Game Mode";
+    normalModeBtn.style.display = "inline-block";
+    hardModeBtn.style.display = "inline-block";
+});
+
+normalModeBtn.addEventListener("click", function() {
+    isHardMode = false;
+    normalModeBtn.style.display = "none";
+    hardModeBtn.style.display = "none";
+    chooseText.textContent = "Choose Player Mode";
+    singleplayerBtn.style.display = "inline-block";
+    multiplayerBtn.style.display = "inline-block";
+});
+
+hardModeBtn.addEventListener("click", function() {
+    isHardMode = true;
+    normalModeBtn.style.display = "none";
+    hardModeBtn.style.display = "none";
+    chooseText.textContent = "Choose Player Mode";
+    singleplayerBtn.style.display = "inline-block";
+    multiplayerBtn.style.display = "inline-block";
+});
+
+singleplayerBtn.addEventListener("click", function() {
+    isMultiplayer = false;
+    singleplayerBtn.style.display = "none";
+    multiplayerBtn.style.display = "none";
+    chooseText.textContent = "Choose your characters color!";
     black.style.display = "inline-block";
     blue.style.display = "inline-block";
     red.style.display = "inline-block";
-    chooseText.style.display = "inline";
+});
+
+multiplayerBtn.addEventListener("click", function() {
+    isMultiplayer = true;
+    singleplayerBtn.style.display = "none";
+    multiplayerBtn.style.display = "none";
+    chooseText.textContent = "Choose your characters color!";
+    black.style.display = "inline-block";
+    blue.style.display = "inline-block";
+    red.style.display = "inline-block";
+    initMultiplayer();
 });
 
 red.addEventListener("click", function() {
-    player.style.backgroundColor = "red";
+    if (!isMultiplayer) {
+        player.style.backgroundColor = "red";
+    }
     startGame()
 })
 
 blue.addEventListener("click", function() {
-    player.style.backgroundColor = "blue";
+    if (!isMultiplayer) {
+        player.style.backgroundColor = "blue";
+    }
     startGame()
 })
 
 black.addEventListener("click", function() {
-    player.style.backgroundColor = "black";
+    if (!isMultiplayer) {
+        player.style.backgroundColor = "black";
+    }
     startGame()
 })
 
@@ -136,6 +351,50 @@ shopContinue.addEventListener("click", function() {
         shopResolve();
         shopResolve = null;
     }
+});
+
+resumeBtn.addEventListener("click", function() {
+    resumeGame();
+});
+
+mainMenuBtn.addEventListener("click", function() {
+    returnToMainMenu();
+});
+
+confirmYesBtn.addEventListener("click", function() {
+    confirmationOverlay.classList.add("hidden");
+    pauseMenuOverlay.classList.add("hidden");
+    isPaused = false;
+    level = 1;
+    points = 0;
+    hasDoubleJump = false;
+    hasDash = false;
+    skipCount = 1;
+    isHardMode = false;
+    isMultiplayer = false;
+    player.style.display = "none";
+    door.style.display = "none";
+    starPoints.style.display = "none";
+    levelText.style.display = "none";
+    coordsUI.style.display = "none";
+    skipButton.style.display = "none";
+    clearPlatforms();
+    clearStars();
+    clearSpikes();
+    button.style.display = "block";
+    titleText.style.display = "block";
+    for (const id in remotePlayers) {
+        removeRemotePlayer(id);
+    }
+    if (multiplayerSocket) {
+        multiplayerSocket.close();
+        multiplayerSocket = null;
+    }
+});
+
+confirmNoBtn.addEventListener("click", function() {
+    confirmationOverlay.classList.add("hidden");
+    pauseMenuOverlay.classList.remove("hidden");
 });
 
 mobileLeft.addEventListener("pointerdown", function(e) {
@@ -264,7 +523,6 @@ function getRoundLayout(roundId) {
     const h = window.innerHeight;
     const bottom = h - 140;
 
-    // Generate varied platform patterns instead of fixed stairs
     function genPattern(type, count) {
         const result = [];
         const screenW = window.innerWidth;
@@ -274,7 +532,7 @@ function getRoundLayout(roundId) {
         for (let i = 0; i < count; i++) {
             const left = baseLeft + i * spacing + jitter(0, 40);
             let top;
-            let width = 220 + Math.floor(Math.random() * 200);
+            let width = isHardMode ? (160 + Math.floor(Math.random() * 120)) : (220 + Math.floor(Math.random() * 200));
 
             switch (type) {
                 case 'ascending':
@@ -288,11 +546,11 @@ function getRoundLayout(roundId) {
                     break;
                 case 'cluster':
                     top = bottom - (Math.floor(Math.random() * 220)) + jitter(0, 30);
-                    width = 160 + Math.floor(Math.random() * 300);
+                    width = isHardMode ? (120 + Math.floor(Math.random() * 180)) : (160 + Math.floor(Math.random() * 300));
                     break;
                 case 'flat':
                     top = bottom + jitter(-30, 20);
-                    width = 240 + Math.floor(Math.random() * 200);
+                    width = isHardMode ? (180 + Math.floor(Math.random() * 120)) : (240 + Math.floor(Math.random() * 200));
                     break;
                 case 'stagger':
                 default:
@@ -306,18 +564,21 @@ function getRoundLayout(roundId) {
     }
 
     const patterns = ['ascending', 'descending', 'pyramid', 'cluster', 'flat', 'stagger'];
-    // Choose a pattern influenced by roundId but with randomness
     const chosen = patterns[(roundId - 1) % patterns.length];
     const alt = patterns[Math.floor(Math.random() * patterns.length)];
     const patternType = Math.random() < 0.6 ? chosen : alt;
-    const count = 3 + Math.floor(Math.random() * 3); // 3..5 platforms
+    let count = 3 + Math.floor(Math.random() * 3);
+
+    if (isHardMode) {
+        count = 4 + Math.floor(Math.random() * 3);
+    }
 
     let rawPlatforms = genPattern(patternType, count);
 
-    // Apply jitter and clamping
     let platforms = rawPlatforms.map(p => {
+        const minWidth = isHardMode ? 100 : 140;
         const jittered = {
-            width: Math.max(140, jitter(p.width, 40)),
+            width: Math.max(minWidth, jitter(p.width, 40)),
             left: jitter(p.left, 30),
             top: Math.max(120, jitter(p.top, 25))
         };
@@ -325,30 +586,23 @@ function getRoundLayout(roundId) {
         return { left: clamped.left, top: jittered.top, width: clamped.width };
     });
 
-    // Ensure platforms are ordered left-to-right so progression makes sense
     platforms.sort((a, b) => a.left - b.left);
 
-    // Player jump capability (approx). Keeps vertical gaps reachable.
-    const maxJump = 120; // pixels - safe upper bound for current jump parameters
+    const maxJump = 120;
 
-    // Enforce vertical gaps between consecutive platforms so the player can reach them
     for (let i = 1; i < platforms.length; i++) {
         const lower = platforms[i - 1];
         const upper = platforms[i];
-        const gap = lower.top - upper.top; // positive when upper is higher (smaller top)
+        const gap = lower.top - upper.top;
         if (gap > maxJump) {
-            // Move the upper platform down so gap == maxJump
             upper.top = lower.top - maxJump;
         }
-        // Never place a platform too close to the top of the viewport
         upper.top = Math.max(120, upper.top);
     }
 
-    // Decide door and star platforms after sorting & constraining
-    const doorPlatformIndex = Math.max(0, platforms.length - 1); // put door on right-most platform by default
-    const starPlatformIndex = Math.max(0, Math.floor(platforms.length / 2)); // middle platform
+    const doorPlatformIndex = Math.max(0, platforms.length - 1);
+    const starPlatformIndex = Math.max(0, Math.floor(platforms.length / 2));
 
-    // Ensure start position sits on the first (left-most) platform
     const startPlat = platforms[0];
     const startX = startPlat ? Math.min(Math.max(20, startPlat.left + 20 + jitter(0, 30)), window.innerWidth - 80) : 80;
     const startY = startPlat ? Math.max(80, startPlat.top - playerHeight) : Math.max(80, bottom - playerHeight);
@@ -455,106 +709,130 @@ function loop() {
         return;
     }
 
-    const movingLeft = keys.a || leftPressed;
-    const movingRight = keys.d || rightPressed;
-    if (movingRight) {
-        vx = 5;
-        lastDirection = 1;
-    } else if (movingLeft) {
-        vx = -5;
-        lastDirection = -1;
-    } else {
-        vx *= 0.8;
+    if (isPaused && !isMultiplayer) {
+        requestAnimationFrame(loop);
+        return;
     }
 
-    if (actionJump) {
-        tryJump();
-        actionJump = false;
-    }
-    if (actionDash) {
-        tryDash();
-        actionDash = false;
-    }
+    if (!isPaused) {
+        const movingLeft = keys.a || leftPressed;
+        const movingRight = keys.d || rightPressed;
+        if (movingRight) {
+            vx = 5;
+            lastDirection = 1;
+        } else if (movingLeft) {
+            vx = -5;
+            lastDirection = -1;
+        } else {
+            vx *= 0.8;
+        }
 
-    vy += 0.5;
+        if (actionJump) {
+            tryJump();
+            actionJump = false;
+        }
+        if (actionDash) {
+            tryDash();
+            actionDash = false;
+        }
 
-    x += vx;
-    y += vy;
+        vy += 0.5;
 
-    const maxX = window.innerWidth - 40;
-    const maxY = window.innerHeight - 40;
+        x += vx;
+        y += vy;
 
-    if (x < 0) x = 0;
-    if (x > maxX) x = maxX;
-    if (y < 0) { y = 0; vy = 0; }
-    if (y >= maxY) {
-        // Player touched bottom — reset to spawn position
-        x = (typeof spawnX === 'number') ? spawnX : 100;
-        y = (typeof spawnY === 'number') ? spawnY : 100;
-        vx = 0;
-        vy = 0;
+        const maxX = window.innerWidth - 40;
+        const maxY = window.innerHeight - 40;
+
+        if (x < 0) x = 0;
+        if (x > maxX) x = maxX;
+        if (y < 0) { y = 0; vy = 0; }
+        if (y >= maxY) {
+            x = (typeof spawnX === 'number') ? spawnX : 100;
+            y = (typeof spawnY === 'number') ? spawnY : 100;
+            vx = 0;
+            vy = 0;
+            player.style.left = x + "px";
+            player.style.top = y + "px";
+            onGround = true;
+        }
+
         player.style.left = x + "px";
         player.style.top = y + "px";
-        onGround = true;
-    }
 
-    player.style.left = x + "px";
-    player.style.top = y + "px";
+        if (coordsUI) {
+            coordsUI.innerText = "X: " + Math.round(x) + " | Y: " + Math.round(y);
+        }
 
-    if (coordsUI) {
-        coordsUI.innerText = "X: " + Math.round(x) + " | Y: " + Math.round(y);
-    }
+        if (isMultiplayer) {
+            sendPlayerState();
+        }
 
-    const playerRect = player.getBoundingClientRect();
-    let landed = false;
-    for (const plat of platforms) {
-        const platRect = plat.getBoundingClientRect();
-        if (checkCollision(player, plat)) {
-            // If moving downwards, check if previous bottom was above platform top -> landing
-            if (vy >= 0) {
-                const prevBottom = playerRect.bottom - vy;
-                if (prevBottom <= platRect.top + 5) {
-                    handleCollision(platRect);
-                    landed = true;
-                    break;
-                }
-                // If penetration happened (fast fall), snap player to platform top
-                if (playerRect.bottom > platRect.top && playerRect.top < platRect.top) {
-                    y = platRect.top - playerHeight;
-                    vy = 0;
-                    onGround = true;
-                    player.style.top = y + "px";
-                    landed = true;
-                    break;
+        const playerRect = player.getBoundingClientRect();
+        let landed = false;
+        for (const plat of platforms) {
+            const platRect = plat.getBoundingClientRect();
+            if (checkCollision(player, plat)) {
+                if (vy >= 0) {
+                    const prevBottom = playerRect.bottom - vy;
+                    if (prevBottom <= platRect.top + 5) {
+                        handleCollision(platRect);
+                        landed = true;
+                        break;
+                    }
+                    if (playerRect.bottom > platRect.top && playerRect.top < platRect.top) {
+                        y = platRect.top - playerHeight;
+                        vy = 0;
+                        onGround = true;
+                        player.style.top = y + "px";
+                        landed = true;
+                        break;
+                    }
                 }
             }
         }
-    }
-    if (!landed && y < maxY - 1) {
-        onGround = false;
-    }
+        if (!landed && y < maxY - 1) {
+            onGround = false;
+        }
 
-    // Check collisions with spawned stars
-    for (let i = stars.length - 1; i >= 0; i--) {
-        const s = stars[i];
-        if (checkCollision(player, s)) {
-            points += 1;
-            starPoints.textContent = "Stars: " + points;
-            s.remove();
-            stars.splice(i, 1);
+        for (let i = stars.length - 1; i >= 0; i--) {
+            const s = stars[i];
+            if (checkCollision(player, s)) {
+                points += 1;
+                starPoints.textContent = "Stars: " + points;
+                s.remove();
+                stars.splice(i, 1);
+            }
+        }
+
+        for (const hazard of spikes) {
+            if (checkCollision(player, hazard)) {
+                resetToSpawn();
+                break;
+            }
+        }
+
+        if (checkCollision(player, door)) {
+            if (!localReachedDoor) {
+                localReachedDoor = true;
+                if (isMultiplayer) {
+                    sendLevelComplete();
+                }
+                finishRound();
+            }
         }
     }
 
-    // Check collisions with spawned spike hazards
-    for (const hazard of spikes) {
-        if (checkCollision(player, hazard)) {
-            resetToSpawn();
-            break;
-        }
-    }
+    if (isMultiplayer) {
+        for (const id in remotePlayers) {
+            const rp = remotePlayers[id];
+            rp.el.style.left = rp.x + "px";
+            rp.el.style.top = rp.y + "px";
 
-    if (checkCollision(player, door)) {
-        finishRound();
+            if (checkCollision(rp.el, door)) {
+                remotePlayersReachedDoor[id] = true;
+            }
+        }
     }
 
     requestAnimationFrame(loop);
@@ -562,29 +840,258 @@ function loop() {
 
 
 async function finishRound() {
+    if (isMultiplayer) {
+        if (!localReachedDoor) {
+            return;
+        }
+        const remoteCount = Object.keys(remotePlayers).length;
+        let allReached = true;
+        for (const id in remotePlayers) {
+            if (!remotePlayersReachedDoor[id]) {
+                allReached = false;
+                break;
+            }
+        }
+        if (remoteCount > 0 && !allReached) {
+            return;
+        }
+    }
+    localReachedDoor = false;
+    remotePlayersReachedDoor = {};
     player.style.display = "none";
     levelText.textContent = "Completed!"
     level += 1
     await wait(1000);
-    if (level % 15 === 0) {
+    if (!isHardMode && level % 15 === 0) {
         await openShop();
     }
     await pickRoundBase();
     levelText.textContent = "Level " + level
 }
 
+const MULTIPLAYER_LEVELS = [
+    {
+        platforms: [
+            { left: 50, top: 550, width: 200 },
+            { left: 300, top: 470, width: 180 },
+            { left: 530, top: 390, width: 160 },
+            { left: 740, top: 310, width: 180 },
+            { left: 970, top: 230, width: 200 }
+        ],
+        doorPlatformIndex: 4,
+        starPlatformIndex: 2,
+        startX: 100,
+        startY: 500
+    },
+    {
+        platforms: [
+            { left: 30, top: 500, width: 180 },
+            { left: 260, top: 420, width: 140 },
+            { left: 450, top: 500, width: 160 },
+            { left: 660, top: 340, width: 150 },
+            { left: 860, top: 420, width: 140 },
+            { left: 1050, top: 260, width: 180 }
+        ],
+        doorPlatformIndex: 5,
+        starPlatformIndex: 2,
+        startX: 80,
+        startY: 450
+    },
+    {
+        platforms: [
+            { left: 20, top: 520, width: 220 },
+            { left: 290, top: 440, width: 160 },
+            { left: 500, top: 360, width: 140 },
+            { left: 690, top: 440, width: 160 },
+            { left: 900, top: 360, width: 140 },
+            { left: 1090, top: 280, width: 200 }
+        ],
+        doorPlatformIndex: 5,
+        starPlatformIndex: 2,
+        startX: 70,
+        startY: 470
+    },
+    {
+        platforms: [
+            { left: 40, top: 580, width: 200 },
+            { left: 280, top: 500, width: 180 },
+            { left: 510, top: 420, width: 160 },
+            { left: 720, top: 340, width: 180 },
+            { left: 950, top: 260, width: 160 },
+            { left: 1160, top: 180, width: 200 }
+        ],
+        doorPlatformIndex: 5,
+        starPlatformIndex: 2,
+        startX: 90,
+        startY: 530
+    },
+    {
+        platforms: [
+            { left: 60, top: 540, width: 160 },
+            { left: 270, top: 460, width: 140 },
+            { left: 460, top: 380, width: 180 },
+            { left: 690, top: 460, width: 140 },
+            { left: 880, top: 300, width: 160 },
+            { left: 1090, top: 220, width: 180 }
+        ],
+        doorPlatformIndex: 5,
+        starPlatformIndex: 2,
+        startX: 110,
+        startY: 490
+    },
+    {
+        platforms: [
+            { left: 10, top: 560, width: 240 },
+            { left: 300, top: 480, width: 200 },
+            { left: 550, top: 400, width: 180 },
+            { left: 780, top: 320, width: 200 },
+            { left: 1030, top: 240, width: 240 }
+        ],
+        doorPlatformIndex: 4,
+        starPlatformIndex: 2,
+        startX: 60,
+        startY: 510
+    },
+    {
+        platforms: [
+            { left: 50, top: 500, width: 180 },
+            { left: 280, top: 420, width: 160 },
+            { left: 490, top: 340, width: 140 },
+            { left: 680, top: 260, width: 160 },
+            { left: 890, top: 340, width: 140 },
+            { left: 1080, top: 260, width: 180 }
+        ],
+        doorPlatformIndex: 5,
+        starPlatformIndex: 2,
+        startX: 100,
+        startY: 450
+    },
+    {
+        platforms: [
+            { left: 30, top: 580, width: 200 },
+            { left: 280, top: 500, width: 160 },
+            { left: 490, top: 580, width: 180 },
+            { left: 720, top: 420, width: 160 },
+            { left: 930, top: 340, width: 180 },
+            { left: 1160, top: 260, width: 200 }
+        ],
+        doorPlatformIndex: 5,
+        starPlatformIndex: 2,
+        startX: 80,
+        startY: 530
+    },
+    {
+        platforms: [
+            { left: 40, top: 520, width: 220 },
+            { left: 310, top: 440, width: 180 },
+            { left: 540, top: 360, width: 160 },
+            { left: 750, top: 280, width: 180 },
+            { left: 980, top: 200, width: 220 }
+        ],
+        doorPlatformIndex: 4,
+        starPlatformIndex: 2,
+        startX: 90,
+        startY: 470
+    },
+    {
+        platforms: [
+            { left: 20, top: 550, width: 200 },
+            { left: 270, top: 470, width: 160 },
+            { left: 480, top: 390, width: 180 },
+            { left: 710, top: 470, width: 160 },
+            { left: 920, top: 310, width: 180 },
+            { left: 1150, top: 230, width: 200 }
+        ],
+        doorPlatformIndex: 5,
+        starPlatformIndex: 2,
+        startX: 70,
+        startY: 500
+    }
+];
+
 async function pickRoundBase() {
     clearPlatforms();
     clearStars();
     clearSpikes();
 
-    
+    if (isMultiplayer) {
+        const levelIndex = (level - 1) % MULTIPLAYER_LEVELS.length;
+        const layout = MULTIPLAYER_LEVELS[levelIndex];
+
+        layout.platforms.forEach(platformLayout => createPlatform(platformLayout));
+
+        const doorPlatform = layout.platforms[layout.doorPlatformIndex];
+        const doorLeft = Math.round(doorPlatform.left + Math.max(0, (doorPlatform.width - doorWidth) / 2));
+        door.style.left = doorLeft + "px";
+        door.style.top = (doorPlatform.top - doorHeight) + "px";
+        door.style.right = "";
+        door.style.display = "block";
+
+        const starCount = Math.floor((level - 1) / 10) + 1;
+        const availableStarIndices = layout.platforms.map((_, i) => i).filter(i => i !== layout.doorPlatformIndex);
+        for (let i = 0; i < starCount && i < availableStarIndices.length; i++) {
+            const idx = availableStarIndices[i];
+            const plat = layout.platforms[idx];
+            const sx = Math.round(plat.left + Math.max(0, (plat.width - 40) / 2));
+            const sy = plat.top - 100;
+            createStarAt(sx, sy);
+        }
+
+        const spikeWidth = 80;
+        const spikeHeight = 80;
+        const availableSpikeIndices = layout.platforms.map((_, i) => i).filter(i => i !== 0 && i !== layout.doorPlatformIndex);
+        const maxSpikes = Math.max(1, Math.floor((availableSpikeIndices.length + 1) / 2));
+        let spikeCount = Math.min(Math.max(1, Math.floor((level - 1) / 3) + 1), maxSpikes);
+        if (isHardMode) {
+            spikeCount = Math.min(spikeCount * 2, availableSpikeIndices.length);
+        }
+        if (availableSpikeIndices.length > 0) {
+            const chosenSpikeIndices = [];
+            const minPlatformGap = 2;
+            for (const idx of availableSpikeIndices) {
+                if (chosenSpikeIndices.length >= spikeCount) break;
+                const tooClose = chosenSpikeIndices.some(existing => Math.abs(existing - idx) < minPlatformGap);
+                if (!tooClose) {
+                    chosenSpikeIndices.push(idx);
+                }
+            }
+            if (chosenSpikeIndices.length < spikeCount) {
+                for (const idx of availableSpikeIndices) {
+                    if (chosenSpikeIndices.length >= spikeCount) break;
+                    if (!chosenSpikeIndices.includes(idx)) {
+                        chosenSpikeIndices.push(idx);
+                    }
+                }
+            }
+            chosenSpikeIndices.sort((a, b) => a - b);
+
+            chosenSpikeIndices.forEach(idx => {
+                const plat = layout.platforms[idx];
+                const sx = Math.round(plat.left + Math.max(0, (plat.width - spikeWidth) / 2));
+                const sy = plat.top;
+                createSpikeAt(sx, sy, spikeWidth, spikeHeight);
+            });
+        }
+
+        x = layout.startX;
+        y = layout.startY - 1;
+        player.style.left = x + "px";
+        player.style.top = y + "px";
+
+        spawnX = x;
+        spawnY = y;
+        onGround = true;
+
+        await wait(300);
+        player.style.display = "block";
+        return;
+    }
+
     let newRound;
     do {
         newRound = Math.floor(Math.random() * 5) + 1;
     } while (newRound === levelRound);
     levelRound = newRound;
-
 
     const layout = getRoundLayout(levelRound);
     if (!layout) return;
@@ -598,7 +1105,6 @@ async function pickRoundBase() {
     door.style.right = "";
     door.style.display = "block";
 
-    // spawn stars based on level: every 10 levels adds one more star
     const starCount = Math.floor((level - 1) / 10) + 1;
     const availableStarIndices = layout.platforms.map((_, i) => i).filter(i => i !== layout.doorPlatformIndex);
     for (let i = 0; i < starCount; i++) {
@@ -609,15 +1115,17 @@ async function pickRoundBase() {
         createStarAt(sx, sy);
     }
 
-    // spawn hazards based on level: more spikes in harder levels, but keep them spaced apart
     const spikeWidth = 80;
     const spikeHeight = 80;
     const availableSpikeIndices = layout.platforms.map((_, i) => i).filter(i => i !== 0 && i !== layout.doorPlatformIndex);
     const maxSpikes = Math.max(1, Math.floor((availableSpikeIndices.length + 1) / 2));
-    const spikeCount = Math.min(Math.max(1, Math.floor((level - 1) / 3) + 1), maxSpikes);
+    let spikeCount = Math.min(Math.max(1, Math.floor((level - 1) / 3) + 1), maxSpikes);
+    if (isHardMode) {
+        spikeCount = Math.min(spikeCount * 2, availableSpikeIndices.length);
+    }
     if (availableSpikeIndices.length > 0) {
         const chosenSpikeIndices = [];
-        const minPlatformGap = 2; // do not place spikes on adjacent platforms when possible
+        const minPlatformGap = 2;
         for (const idx of availableSpikeIndices) {
             if (chosenSpikeIndices.length >= spikeCount) break;
             const tooClose = chosenSpikeIndices.some(existing => Math.abs(existing - idx) < minPlatformGap);
@@ -625,7 +1133,6 @@ async function pickRoundBase() {
                 chosenSpikeIndices.push(idx);
             }
         }
-        // if we still need more spikes, allow closer placement but still avoid duplicate platforms
         if (chosenSpikeIndices.length < spikeCount) {
             for (const idx of availableSpikeIndices) {
                 if (chosenSpikeIndices.length >= spikeCount) break;
@@ -645,12 +1152,10 @@ async function pickRoundBase() {
     }
 
     x = layout.startX;
-    // place the player just above the platform to avoid spawning inside it
     y = layout.startY - 1;
     player.style.left = x + "px";
     player.style.top = y + "px";
 
-    // record spawn so we can reset if the player falls off the bottom
     spawnX = x;
     spawnY = y;
     onGround = true;
