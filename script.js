@@ -844,20 +844,8 @@ async function finishRound() {
         if (!localReachedDoor) {
             return;
         }
-        const remoteCount = Object.keys(remotePlayers).length;
-        let allReached = true;
-        for (const id in remotePlayers) {
-            if (!remotePlayersReachedDoor[id]) {
-                allReached = false;
-                break;
-            }
-        }
-        if (remoteCount > 0 && !allReached) {
-            return;
-        }
     }
     localReachedDoor = false;
-    remotePlayersReachedDoor = {};
     player.style.display = "none";
     levelText.textContent = "Completed!"
     level += 1
