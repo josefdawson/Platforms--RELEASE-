@@ -28,6 +28,7 @@ let points = 0
 let isHardMode = false;
 let isMultiplayer = false;
 let isPaused = false;
+let gameRunning = false;
 let localReachedDoor = false;
 let remotePlayersReachedDoor = {};
 
@@ -114,6 +115,12 @@ function initMultiplayer() {
             }
 
             if (msg.type === "playerList") {
+                // Sync to the server's current level
+                if (msg.currentLevel && msg.currentLevel !== level) {
+                    level = msg.currentLevel;
+                    levelText.textContent = "Level " + level;
+                }
+
                 for (const id in msg.players) {
                     if (id !== playerId) {
                         if (!remotePlayers[id]) {
@@ -128,6 +135,11 @@ function initMultiplayer() {
                         removeRemotePlayer(id);
                     }
                 }
+            }
+
+            if (msg.type === "levelSync") {
+                level = msg.level;
+                levelText.textContent = "Level " + level;
             }
 
             if (msg.type === "playerState") {
@@ -225,7 +237,10 @@ window.onkeyup = (e) => {
 };
 
 async function startGame() {
+    gameRunning = false;
+    await wait(50);
     isPaused = false;
+    gameRunning = true;
     player.style.display = "block";
     black.style.display = "none";
     blue.style.display = "none";
@@ -362,6 +377,7 @@ mainMenuBtn.addEventListener("click", function() {
 });
 
 confirmYesBtn.addEventListener("click", function() {
+    gameRunning = false;
     confirmationOverlay.classList.add("hidden");
     pauseMenuOverlay.classList.add("hidden");
     isPaused = false;
@@ -704,6 +720,8 @@ function tryDash() {
 }
 
 function loop() {
+    if (!gameRunning) return;
+
     if (shopOpen) {
         requestAnimationFrame(loop);
         return;

@@ -5,6 +5,7 @@ const server = http.createServer();
 const wss = new WebSocket.Server({ server });
 
 let players = {};
+let currentLevel = 1;
 const PLAYER_COLORS = [
     '#ff4444', // red
     '#44ff44', // green
@@ -38,7 +39,20 @@ function broadcastPlayerList() {
     }
     const message = JSON.stringify({
         type: 'playerList',
-        players: playerList
+        players: playerList,
+        currentLevel: currentLevel
+    });
+    wss.clients.forEach(function each(client) {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(message);
+        }
+    });
+}
+
+function broadcastLevelSync() {
+    const message = JSON.stringify({
+        type: 'levelSync',
+        level: currentLevel
     });
     wss.clients.forEach(function each(client) {
         if (client.readyState === WebSocket.OPEN) {
@@ -73,7 +87,7 @@ wss.on('connection', function connection(ws) {
                     playerId: msg.playerId
                 }));
 
-                // Broadcast full player list to everyone
+                // Broadcast full player list to everyone (includes currentLevel)
                 broadcastPlayerList();
             }
 
@@ -97,6 +111,10 @@ wss.on('connection', function connection(ws) {
             }
 
             if (msg.type === 'levelComplete') {
+                // When any player completes a level, advance the global level
+                currentLevel++;
+                broadcastLevelSync();
+
                 wss.clients.forEach(function each(client) {
                     if (client.readyState === WebSocket.OPEN && client !== ws) {
                         client.send(JSON.stringify({
