@@ -525,7 +525,8 @@ function createPlatform(layout) {
 }
 
 function clampPlatform(left, width) {
-    const maxX = window.innerWidth - 20;
+    // Allow platforms to extend far to the right (up to 8000px)
+    const maxX = 8000;
     width = Math.min(width, maxX - left - 10);
     left = Math.max(10, Math.min(left, maxX - width - 10));
     return { left, width };
@@ -759,11 +760,10 @@ function loop() {
         x += vx;
         y += vy;
 
-        const maxX = window.innerWidth - 40;
+        // No viewport clamping on X — player can move across the full platform width
         const maxY = window.innerHeight - 40;
 
         if (x < 0) x = 0;
-        if (x > maxX) x = maxX;
         if (y < 0) { y = 0; vy = 0; }
         if (y >= maxY) {
             x = (typeof spawnX === 'number') ? spawnX : 100;
