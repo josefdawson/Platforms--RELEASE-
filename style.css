@@ -700,7 +700,12 @@ body {
 
 @media (max-width: 900px) and (orientation: landscape) {
     .platform, #platform, .spike-clone, #finishDoor {
-        transform: translateY(35px);
+        transform-origin: top left;
+        transform: scale(0.7);
+    }
+    #finishDoor {
+        width: 70px;
+        height: 105px;
     }
 }
 
