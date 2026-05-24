@@ -700,7 +700,7 @@ body {
 
 @media (max-width: 900px) and (orientation: landscape) {
     .platform, #platform, .spike-clone, #finishDoor {
-        transform-origin: top bottom;
+        transform-origin: top left;
         transform: scale(0.22);
     }
     #finishDoor {
@@ -711,6 +711,9 @@ body {
 
 /* ===== RESPONSIVE: SMALL SCREENS ===== */
 @media (max-width: 768px) {
+    /*.spike-clone {
+        
+    }*/
     #startButton {
         width: 50vw;
         height: 7vh;
