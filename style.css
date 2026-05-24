@@ -703,6 +703,9 @@ body {
         transform-origin: top left;
         transform: scale(0.22);
     }
+    .spike-clone {
+        top: top + 10px
+    }
     #finishDoor {
         width: 55px;
         height: 83px;
@@ -711,9 +714,6 @@ body {
 
 /* ===== RESPONSIVE: SMALL SCREENS ===== */
 @media (max-width: 768px) {
-    /*.spike-clone {
-        
-    }*/
     #startButton {
         width: 50vw;
         height: 7vh;
