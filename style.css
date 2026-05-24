@@ -699,12 +699,12 @@ body {
 }
 
 @media (max-width: 900px) and (orientation: landscape) {
-    .platform, #platform, .spike-clone, #finishDoor {
+    .platform, #platform, #finishDoor {
         transform-origin: top left;
         transform: scale(0.22);
     }
     .spike-clone {
-        top: top + 10px
+        transform-origin: top
     }
     #finishDoor {
         width: 55px;
