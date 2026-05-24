@@ -8,6 +8,20 @@ const coordsUI = document.getElementById("coordsUI");
 const red = document.getElementById("red")
 const blue = document.getElementById("blue")
 const black = document.getElementById("black")
+const startPhotoButton = document.getElementById("startPhotoButton");
+const codeButton = document.getElementById("codeButton");
+const codeOverlay = document.getElementById("codeOverlay");
+const codeBox = document.getElementById("codeBox");
+const codeInput = document.getElementById("codeInput");
+const codeSubmit = document.getElementById("codeSubmit");
+const codeCancel = document.getElementById("codeCancel");
+const codeMessage = document.getElementById("codeMessage");
+const cameraOverlay = document.getElementById("cameraOverlay");
+const cameraVideo = document.getElementById("cameraVideo");
+const photoPreview = document.getElementById("photoPreview");
+const photoCountdown = document.getElementById("photoCountdown");
+const photoMessage = document.getElementById("photoMessage");
+let cameraStream = null;
 const doorWidth = 100;
 const doorHeight = 150;
 const playerHeight = 50;
@@ -90,6 +104,14 @@ let multiplayerSocket = null;
 let playerId = null;
 let myColor = '#ff0000';
 let remotePlayers = {};
+let fakePlatforms = [];
+let fakeStars = [];
+let fakeSpikes = [];
+let trollMovingElements = [];
+let trollNextSpikeSpawn = 0;
+let levelIsTroll = false;
+let lostStars = 0;
+let starRecoveryNeeded = 0;
 
 function initMultiplayer() {
     playerId = Math.random().toString(36).substr(2, 9);
@@ -237,11 +259,18 @@ window.onkeyup = (e) => {
 };
 
 async function startGame() {
+    const savedCode = localStorage.getItem("cheatCode");
+    if (savedCode === "level99aka67") {
+        level = 98;
+        localStorage.removeItem("cheatCode");
+    }
+
     gameRunning = false;
     await wait(50);
     isPaused = false;
     gameRunning = true;
     player.style.display = "block";
+    codeButton.style.display = "none";
     black.style.display = "none";
     blue.style.display = "none";
     red.style.display = "none";
@@ -284,6 +313,7 @@ function returnToMainMenu() {
 button.addEventListener("click", function() {
     button.style.display = "none";
     titleText.style.display = "none";
+    codeButton.style.display = "none";
     chooseText.textContent = "Choose Game Mode";
     normalModeBtn.style.display = "inline-block";
     hardModeBtn.style.display = "inline-block";
@@ -311,22 +341,105 @@ singleplayerBtn.addEventListener("click", function() {
     isMultiplayer = false;
     singleplayerBtn.style.display = "none";
     multiplayerBtn.style.display = "none";
-    chooseText.textContent = "Choose your characters color!";
-    black.style.display = "inline-block";
-    blue.style.display = "inline-block";
-    red.style.display = "inline-block";
+    chooseText.textContent = "Take your player photo!";
+    black.style.display = "none";
+    blue.style.display = "none";
+    red.style.display = "none";
+    startPhotoButton.style.display = "inline-block";
 });
 
 multiplayerBtn.addEventListener("click", function() {
     isMultiplayer = true;
     singleplayerBtn.style.display = "none";
     multiplayerBtn.style.display = "none";
-    chooseText.textContent = "Choose your characters color!";
-    black.style.display = "inline-block";
-    blue.style.display = "inline-block";
-    red.style.display = "inline-block";
+    chooseText.textContent = "Take your player photo!";
+    black.style.display = "none";
+    blue.style.display = "none";
+    red.style.display = "none";
+    startPhotoButton.style.display = "inline-block";
     initMultiplayer();
 });
+
+startPhotoButton.addEventListener("click", function() {
+    startPhotoButton.style.display = "none";
+    beginPhotoFlow();
+});
+
+function beginPhotoFlow() {
+    chooseText.textContent = "Hold still... photo in 5 seconds";
+    photoMessage.textContent = "Get ready for your icon";
+    photoPreview.style.display = "none";
+    photoCountdown.textContent = "5";
+    cameraOverlay.classList.remove("hidden");
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        photoMessage.textContent = "Camera unavailable. Starting game...";
+        setTimeout(() => {
+            cameraOverlay.classList.add("hidden");
+            startGame();
+        }, 1500);
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+            cameraStream = stream;
+            cameraVideo.srcObject = stream;
+            cameraVideo.style.display = "block";
+            photoPreview.style.display = "none";
+            cameraVideo.play();
+            let countdown = 5;
+            const timer = setInterval(() => {
+                countdown -= 1;
+                photoCountdown.textContent = countdown.toString();
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    capturePhotoAndStart();
+                }
+            }, 1000);
+        })
+        .catch(() => {
+            photoMessage.textContent = "Camera denied. Starting game...";
+            setTimeout(() => {
+                cameraOverlay.classList.add("hidden");
+                startGame();
+            }, 1500);
+        });
+}
+
+function capturePhotoAndStart() {
+    const video = cameraVideo;
+    const videoWidth = video.videoWidth || 240;
+    const videoHeight = video.videoHeight || 240;
+    const rectSize = Math.min(videoWidth, videoHeight, 320);
+    const canvas = document.createElement("canvas");
+    canvas.width = rectSize;
+    canvas.height = rectSize;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, (video.videoWidth - rectSize) / 2, (video.videoHeight - rectSize) / 2, rectSize, rectSize, 0, 0, rectSize, rectSize);
+    const photoData = canvas.toDataURL("image/png");
+
+    player.src = photoData;
+    photoPreview.src = photoData;
+    cameraVideo.style.display = "none";
+    photoPreview.style.display = "block";
+    photoMessage.textContent = "That is gonna be your icon for now!";
+    photoCountdown.textContent = "";
+    stopCamera();
+
+    setTimeout(() => {
+        cameraOverlay.classList.add("hidden");
+        startGame();
+    }, 2000);
+}
+
+function stopCamera() {
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+    cameraVideo.srcObject = null;
+}
 
 red.addEventListener("click", function() {
     if (!isMultiplayer) {
@@ -376,6 +489,36 @@ mainMenuBtn.addEventListener("click", function() {
     returnToMainMenu();
 });
 
+codeButton.addEventListener("click", function() {
+    codeInput.value = "";
+    codeMessage.textContent = "";
+    codeOverlay.classList.remove("hidden");
+    codeInput.focus();
+});
+
+codeSubmit.addEventListener("click", function() {
+    const code = codeInput.value.trim();
+    if (code === "level99aka67") {
+        localStorage.setItem("cheatCode", code);
+        codeMessage.textContent = "Code saved. Next play will start at level 98.";
+        setTimeout(() => {
+            codeOverlay.classList.add("hidden");
+        }, 1200);
+    } else {
+        codeMessage.textContent = "Invalid code.";
+    }
+});
+
+codeCancel.addEventListener("click", function() {
+    codeOverlay.classList.add("hidden");
+});
+
+codeInput.addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+        codeSubmit.click();
+    }
+});
+
 confirmYesBtn.addEventListener("click", function() {
     gameRunning = false;
     confirmationOverlay.classList.add("hidden");
@@ -399,6 +542,7 @@ confirmYesBtn.addEventListener("click", function() {
     clearSpikes();
     button.style.display = "block";
     titleText.style.display = "block";
+    codeButton.style.display = "block";
     for (const id in remotePlayers) {
         removeRemotePlayer(id);
     }
@@ -484,6 +628,16 @@ function clearSpikes() {
     spikes = [];
 }
 
+function clearFakes() {
+    fakePlatforms.forEach(p => p.remove());
+    fakePlatforms = [];
+    fakeStars.forEach(s => s.remove());
+    fakeStars = [];
+    fakeSpikes.forEach(s => s.remove());
+    fakeSpikes = [];
+    trollMovingElements = [];
+}
+
 function createStarAt(xPos, yPos) {
     const s = star.cloneNode(true);
     s.id = "";
@@ -524,8 +678,167 @@ function createPlatform(layout) {
     return p;
 }
 
+function createFakePlatformAt(xPos, yPos, width) {
+    const p = platformTemplate.cloneNode(true);
+    p.id = "";
+    p.className = "platform fake-platform";
+    p.style.left = xPos + "px";
+    p.style.top = yPos + "px";
+    p.style.width = width + "px";
+    p.style.right = "";
+    p.style.display = "block";
+    p.style.opacity = "0.55";
+    document.body.appendChild(p);
+    fakePlatforms.push(p);
+    return p;
+}
+
+function createStarLookingSpikeAt(xPos, yPos, width = 80, height = 80) {
+    const s = star.cloneNode(true);
+    s.id = "";
+    s.className = "spike-clone fake-spike";
+    s.style.left = xPos + "px";
+    s.style.top = yPos + "px";
+    s.style.width = width + "px";
+    s.style.height = height + "px";
+    s.style.display = "block";
+    document.body.appendChild(s);
+    spikes.push(s);
+    return s;
+}
+
+function createSpikeLookingStarAt(xPos, yPos, width = 80, height = 80) {
+    const s = spike.cloneNode(true);
+    s.id = "";
+    s.className = "star-clone fake-star";
+    s.src = spike.src;
+    s.style.left = xPos + "px";
+    s.style.top = (yPos - height) + "px";
+    s.style.width = width + "px";
+    s.style.height = height + "px";
+    s.style.display = "block";
+    document.body.appendChild(s);
+    stars.push(s);
+    return s;
+}
+
+function addTrollMover(el, vx, vy) {
+    trollMovingElements.push({ el, vx, vy });
+}
+
+function randomBetween(min, max) {
+    return min + Math.random() * (max - min);
+}
+
+function updateTrollMovement() {
+    const widthLimit = window.innerWidth;
+    const heightLimit = window.innerHeight;
+    trollMovingElements.forEach(obj => {
+        const el = obj.el;
+        let left = parseFloat(el.style.left) || 0;
+        let top = parseFloat(el.style.top) || 0;
+        const width = el.offsetWidth || 80;
+        const height = el.offsetHeight || 80;
+
+        left += obj.vx;
+        top += obj.vy;
+
+        if (left <= 10 || left >= widthLimit - width - 10) {
+            obj.vx = -obj.vx;
+            left = Math.max(10, Math.min(left, widthLimit - width - 10));
+        }
+        if (top <= 120 || top >= heightLimit - height - 50) {
+            obj.vy = -obj.vy;
+            top = Math.max(120, Math.min(top, heightLimit - height - 50));
+        }
+
+        el.style.left = left + "px";
+        el.style.top = top + "px";
+    });
+}
+
+function spawnTrollSpike() {
+    if (spikes.length > 2) return;
+    const xPos = 40 + Math.random() * (window.innerWidth - 120);
+    const yPos = 120 + Math.random() * 280;
+    const spike = createSpikeAt(xPos, yPos, 70, 70);
+    spike.style.opacity = "0.9";
+    addTrollMover(spike, randomBetween(0.7, 2.3), randomBetween(-0.4, 0.4));
+}
+
+function handleTrollDeath() {
+    if (points > 0) {
+        lostStars = points;
+        starRecoveryNeeded = points;
+        points = 0;
+        starPoints.textContent = `Stars: 0 (recover ${starRecoveryNeeded})`;
+    }
+    resetToSpawn();
+}
+
+function resetTrollLevel() {
+    levelIsTroll = false;
+    trollMovingElements = [];
+    trollNextSpikeSpawn = 0;
+    lostStars = 0;
+    starRecoveryNeeded = 0;
+}
+
+function initTrollLevel(layout) {
+    levelIsTroll = true;
+    trollMovingElements = [];
+    fakeStars = [];
+    fakeSpikes = [];
+
+    const starSpikeIndices = layout.platforms.map((_, i) => i).filter(i => i !== layout.doorPlatformIndex);
+    starSpikeIndices.slice(0, 2).forEach(idx => {
+        const plat = layout.platforms[idx];
+        const sx = Math.round(plat.left + Math.max(0, (plat.width - 40) / 2));
+        const sy = plat.top - 100;
+        createStarLookingSpikeAt(sx, sy, 80, 80);
+    });
+
+    starSpikeIndices.slice(-2).forEach(idx => {
+        const plat = layout.platforms[idx];
+        const sx = Math.round(plat.left + Math.max(0, (plat.width - 40) / 2));
+        const sy = plat.top;
+        createSpikeLookingStarAt(sx, sy, 80, 80);
+    });
+
+    const movingPlatforms = platforms
+        .slice()
+        .sort(() => Math.random() - 0.5)
+        .slice(0, Math.min(1, platforms.length));
+    movingPlatforms.forEach(p => addTrollMover(p, randomBetween(0.8, 1.2), randomBetween(-0.2, 0.2)));
+
+    const movingSpikes = spikes
+        .slice()
+        .sort(() => Math.random() - 0.5)
+        .slice(0, Math.min(1, spikes.length));
+    movingSpikes.forEach(s => addTrollMover(s, randomBetween(0.8, 1.5), randomBetween(-0.3, 0.3)));
+
+    addTrollMover(door, randomBetween(0.8, 1.2), randomBetween(-0.3, 0.3));
+    trollNextSpikeSpawn = performance.now() + 5000;
+}
+
+function recoverStar() {
+    if (level >= 99 && starRecoveryNeeded > 0) {
+        starRecoveryNeeded -= 1;
+        if (starRecoveryNeeded <= 0) {
+            starRecoveryNeeded = 0;
+            points = lostStars;
+            lostStars = 0;
+            starPoints.textContent = `Stars: ${points}`;
+        } else {
+            starPoints.textContent = `Stars: 0 (recover ${starRecoveryNeeded})`;
+        }
+        return;
+    }
+    points += 1;
+    starPoints.textContent = "Stars: " + points;
+}
+
 function clampPlatform(left, width) {
-    // Allow platforms to extend far to the right (up to 8000px)
     const maxX = 8000;
     width = Math.min(width, maxX - left - 10);
     left = Math.max(10, Math.min(left, maxX - width - 10));
@@ -816,8 +1129,7 @@ function loop() {
         for (let i = stars.length - 1; i >= 0; i--) {
             const s = stars[i];
             if (checkCollision(player, s)) {
-                points += 1;
-                starPoints.textContent = "Stars: " + points;
+                recoverStar();
                 s.remove();
                 stars.splice(i, 1);
             }
@@ -825,7 +1137,11 @@ function loop() {
 
         for (const hazard of spikes) {
             if (checkCollision(player, hazard)) {
-                resetToSpawn();
+                if (level >= 99) {
+                    handleTrollDeath();
+                } else {
+                    resetToSpawn();
+                }
                 break;
             }
         }
@@ -838,6 +1154,14 @@ function loop() {
                 }
                 finishRound();
             }
+        }
+    }
+
+    if (levelIsTroll) {
+        updateTrollMovement();
+        if (performance.now() >= trollNextSpikeSpawn) {
+            spawnTrollSpike();
+            trollNextSpikeSpawn = performance.now() + 1100;
         }
     }
 
@@ -1019,6 +1343,7 @@ async function pickRoundBase() {
     clearPlatforms();
     clearStars();
     clearSpikes();
+    clearFakes();
 
     if (isMultiplayer) {
         const levelIndex = (level - 1) % MULTIPLAYER_LEVELS.length;
@@ -1033,7 +1358,8 @@ async function pickRoundBase() {
         door.style.right = "";
         door.style.display = "block";
 
-        const starCount = Math.floor((level - 1) / 10) + 1;
+        let starCount = Math.floor((level - 1) / 10) + 1;
+        if (level >= 99) starCount = Math.min(starCount, 2);
         const availableStarIndices = layout.platforms.map((_, i) => i).filter(i => i !== layout.doorPlatformIndex);
         for (let i = 0; i < starCount && i < availableStarIndices.length; i++) {
             const idx = availableStarIndices[i];
@@ -1048,6 +1374,7 @@ async function pickRoundBase() {
         const availableSpikeIndices = layout.platforms.map((_, i) => i).filter(i => i !== 0 && i !== layout.doorPlatformIndex);
         const maxSpikes = Math.max(1, Math.floor((availableSpikeIndices.length + 1) / 2));
         let spikeCount = Math.min(Math.max(1, Math.floor((level - 1) / 3) + 1), maxSpikes);
+        if (level >= 99) spikeCount = Math.min(spikeCount, 2);
         if (isHardMode) {
             spikeCount = Math.min(spikeCount * 2, availableSpikeIndices.length);
         }
@@ -1088,6 +1415,12 @@ async function pickRoundBase() {
         spawnY = y;
         onGround = true;
 
+        if (level >= 99) {
+            initTrollLevel(layout);
+        } else {
+            resetTrollLevel();
+        }
+
         await wait(300);
         player.style.display = "block";
         return;
@@ -1111,7 +1444,8 @@ async function pickRoundBase() {
     door.style.right = "";
     door.style.display = "block";
 
-    const starCount = Math.floor((level - 1) / 10) + 1;
+    let starCount = Math.floor((level - 1) / 10) + 1;
+    if (level >= 99) starCount = Math.min(starCount, 2);
     const availableStarIndices = layout.platforms.map((_, i) => i).filter(i => i !== layout.doorPlatformIndex);
     for (let i = 0; i < starCount; i++) {
         const idx = availableStarIndices[Math.floor(i * availableStarIndices.length / starCount)];
@@ -1126,6 +1460,7 @@ async function pickRoundBase() {
     const availableSpikeIndices = layout.platforms.map((_, i) => i).filter(i => i !== 0 && i !== layout.doorPlatformIndex);
     const maxSpikes = Math.max(1, Math.floor((availableSpikeIndices.length + 1) / 2));
     let spikeCount = Math.min(Math.max(1, Math.floor((level - 1) / 3) + 1), maxSpikes);
+    if (level >= 99) spikeCount = Math.min(spikeCount, 2);
     if (isHardMode) {
         spikeCount = Math.min(spikeCount * 2, availableSpikeIndices.length);
     }
@@ -1165,6 +1500,12 @@ async function pickRoundBase() {
     spawnX = x;
     spawnY = y;
     onGround = true;
+
+    if (level >= 99) {
+        initTrollLevel(layout);
+    } else {
+        resetTrollLevel();
+    }
 
     await wait(300);
     player.style.display = "block";

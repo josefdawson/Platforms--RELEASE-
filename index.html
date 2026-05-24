@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="player"></div>
     <div id="platform"></div>
     <button id="blue">Blue</button>
     <button id="red">Red</button>
@@ -20,6 +19,7 @@
     <div id="finishDoor"></div>
     <img id="star" src="image.png" alt="Star"></img>
     <img id="spike" src="image copy.png" alt="Spike"></img>
+    <img id="player" src="Screenshot_20260524-110058.png" alt="Monkey"></img>
 
     <p id="lvl">Level 1</p>
     <p id="starPoints">Stars: 0</p>
@@ -27,6 +27,26 @@
     <button id="skipButton">Skip Level (1)</button>
     <h1 id="chooseText">Choose your characters color!</h1>
     <button id="startButton">Start Game</button>
+    <button id="codeButton" class="mode-btn">Code</button>
+    <button id="startPhotoButton" class="mode-btn" style="display:none;">Start Photo</button>
+    <div id="cameraOverlay" class="hidden">
+        <div id="cameraBox">
+            <h2 id="photoMessage">Ready for your player photo</h2>
+            <video id="cameraVideo" autoplay playsinline muted></video>
+            <img id="photoPreview" alt="Photo preview" />
+            <div id="photoCountdown">5</div>
+        </div>
+    </div>
+
+    <div id="codeOverlay" class="hidden">
+        <div id="codeBox">
+            <h2>Enter Code</h2>
+            <input id="codeInput" type="text" placeholder="Enter code" autocomplete="off">
+            <button id="codeSubmit" class="mode-btn">Submit</button>
+            <button id="codeCancel" class="pause-btn">Cancel</button>
+            <p id="codeMessage"></p>
+        </div>
+    </div>
     
     <div id="modeSelectOverlay" class="hidden">
         <div id="modeSelectBox">
