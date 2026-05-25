@@ -2,6 +2,7 @@ const button = document.getElementById("startButton");
 const titleText = document.getElementById("title");
 const player = document.getElementById("player");
 const platformTemplate = document.getElementById("platform");
+const finishEffect = document.getElementById("Finish");
 platformTemplate.classList.add("platform");
 platformTemplate.style.display = "none";
 const coordsUI = document.getElementById("coordsUI");
@@ -47,6 +48,7 @@ let localReachedDoor = false;
 let remotePlayersReachedDoor = {};
 
 let x = 100, y = 100, vx = 0, vy = 0, onGround = false;
+let isOnAir = false;
 const keys = {};
 let leftPressed = false;
 let rightPressed = false;
@@ -77,6 +79,9 @@ const mobileLeft = document.getElementById("mobileLeft");
 const mobileRight = document.getElementById("mobileRight");
 const mobileJump = document.getElementById("mobileJump");
 const mobileDash = document.getElementById("mobileDash");
+const jumpSound = document.getElementById("Jump");
+const walkSound = document.getElementById("Walk");
+let isWalkingSoundActive = false;
 
 const modeSelectOverlay = document.getElementById("modeSelectOverlay");
 const modeSelectBox = document.getElementById("modeSelectBox");
@@ -250,7 +255,11 @@ window.onkeydown = (e) => {
         if (key === "a") lastDirection = -1;
         if (key === "d") lastDirection = 1;
     }
-    if (key === " ") actionJump = true;
+    if (key === " ") {
+        if (!isOnAir || (hasDoubleJump && !doubleJumpUsed)) {
+            actionJump = true;
+        }
+    }
     if (key === "q") actionDash = true;
 };
 window.onkeyup = (e) => {
@@ -598,6 +607,7 @@ function handleCollision(platRect) {
         y = platRect.top - playerHeight;
         vy = 0;
         onGround = true;
+        isOnAir = false;
         doubleJumpUsed = false;
         canDash = true;
     }
@@ -954,6 +964,7 @@ function resetToSpawn() {
     player.style.left = x + "px";
     player.style.top = y + "px";
     onGround = true;
+    isOnAir = false;
     doubleJumpUsed = false;
     canDash = true;
 }
@@ -1024,6 +1035,11 @@ function tryJump() {
         vy = -15;
         doubleJumpUsed = true;
     }
+
+    if (jumpSound) {
+        jumpSound.currentTime = 0;
+        jumpSound.play().catch(() => {});
+    }
 }
 
 function tryDash() {
@@ -1059,6 +1075,20 @@ function loop() {
             vx *= 0.8;
         }
 
+        const shouldPlayWalk = (movingLeft || movingRight) && onGround;
+        if (walkSound) {
+            if (shouldPlayWalk && !isWalkingSoundActive) {
+                walkSound.currentTime = 0;
+                walkSound.loop = true;
+                walkSound.play().catch(() => {});
+                isWalkingSoundActive = true;
+            } else if (!shouldPlayWalk && isWalkingSoundActive) {
+                walkSound.pause();
+                walkSound.currentTime = 0;
+                isWalkingSoundActive = false;
+            }
+        }
+
         if (actionJump) {
             tryJump();
             actionJump = false;
@@ -1086,6 +1116,7 @@ function loop() {
             player.style.left = x + "px";
             player.style.top = y + "px";
             onGround = true;
+            isOnAir = false;
         }
 
         player.style.left = x + "px";
@@ -1115,6 +1146,7 @@ function loop() {
                         y = platRect.top - playerHeight;
                         vy = 0;
                         onGround = true;
+                        isOnAir = false;
                         player.style.top = y + "px";
                         landed = true;
                         break;
@@ -1124,6 +1156,7 @@ function loop() {
         }
         if (!landed && y < maxY - 1) {
             onGround = false;
+            isOnAir = true;
         }
 
         for (let i = stars.length - 1; i >= 0; i--) {
@@ -1149,6 +1182,8 @@ function loop() {
         if (checkCollision(player, door)) {
             if (!localReachedDoor) {
                 localReachedDoor = true;
+                finishEffect.currentTime = 0; 
+                finishEffect.play();
                 if (isMultiplayer) {
                     sendLevelComplete();
                 }
