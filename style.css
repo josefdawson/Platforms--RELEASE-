@@ -11,7 +11,21 @@ html, body {
 body {
     background-color: lightblue;
     font-family: Arial, Helvetica, sans-serif;
+    cursor: none;
 }
+
+#cursor {
+  position: fixed;  
+  pointer-events: none;  
+  z-index: 9999;        
+  transform: translate(-50%, -50%); 
+  left: 0;
+  top: 0;
+  width: 50px;
+  height: 50px;
+  mix-blend-mode: multiply;
+}
+
 
 /* ===== MAIN MENU ===== */
 #startButton {

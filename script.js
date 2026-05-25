@@ -118,6 +118,14 @@ let levelIsTroll = false;
 let lostStars = 0;
 let starRecoveryNeeded = 0;
 
+const cursor = document.getElementById('cursor');
+
+window.addEventListener('mousemove', (e) => {
+  requestAnimationFrame(() => {
+    cursor.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%)`;
+  });
+});
+
 function initMultiplayer() {
     playerId = Math.random().toString(36).substr(2, 9);
 
